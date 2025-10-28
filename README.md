@@ -1,5 +1,17 @@
 # FortiGate-login-with-SSH-and-collect-CLI-command-outputs
 
+## Purpose
+FortiGate CLI output Collector - to assist with automated output collection for troubleshooting
+
+CAUTION : 
+* Create separate credentials for read-only purpose so that the script is enabled ot collect read only outputs and not make any inadvertant changes to Fortigate configs.
+* Review the script, test it in lab before it is used in production, this is not an official Fortinet script, only a hobby project.
+
+Usage example:
+  python3 fg_cli_collect.py --host 192.168.1.99 --username admin-read --commands cli-commands.txt --output output-file.txt
+
+If you omit --password, you will be prompted securely.
+Note: "admin-read" is just an example account created in FortiGate GUI specifically with read only permissions.
 
 ## Usage Example
 
@@ -14,7 +26,7 @@ get system performance status
 
 3. Run:
 
-python3 fg_cli_collect.py --host 192.168.1.99 --username admin --commands cli-commands.txt --output output-file.txt
+python3 fg_cli_collect.py --host 192.168.1.99 --username admin-read --commands cli-commands.txt --output output-file.txt
 
 You’ll be prompted for the password if not passed with --password.
 
