@@ -1,7 +1,7 @@
 # FortiGate-login-with-SSH-and-collect-CLI-command-outputs
 
 
-✅ Usage Example
+### Usage Example
 
 1. Install dependency:
 
