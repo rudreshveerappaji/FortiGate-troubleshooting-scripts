@@ -8,7 +8,7 @@ CAUTION :
 * Review the script, test it in a lab device before it is used in production, this is not an official Fortinet script, just a hobby project to illustrate the use case.
 
 Usage example:
-  python3 fg_cli_collect.py --host 192.168.1.99 --username admin-read --commands cli-commands.txt --output output-file.txt
+  python3 fg_cli_collect.py --host 1.2.3.4 --username admin-read --commands cli-commands.txt --output output-file.txt
 
 If you omit --password, you will be prompted securely.
 Note: "admin-read" is just an example account created in FortiGate GUI specifically with read only permissions.
@@ -28,22 +28,22 @@ execute tac report
 ```
 3. Run:
 ```bash
-python3 fg_cli_collect.py --host 192.168.1.99 --username admin-read --commands cli-commands.txt --output output-file.txt
+python3 fg_cli_collect.py --host 1.2.3.4 --username admin-read --commands cli-commands.txt --output output-file.txt
 ```
 You’ll be prompted for the password if not passed with --password.
 
 Optional:
 use "verbose" argument for debugging
 ```bash
-python3 fg_cli_collect.py --host 192.168.1.99 --username fortinet --commands cli-commands.txt --output output-file.txt --verbose
+python3 fg_cli_collect.py --host 1.2.3.4 --username fortinet --commands cli-commands.txt --output output-file.txt --verbose
 ```
 ### Example outputs:
 ```bash
-C:\Downloads>python3 fg_cli_collect.py --host 192.168.1.99 --username fortinet --commands cli-commands.txt --output output-file.txt --verbose
-Password for fortinet@192.168.1.99:
+C:\Downloads>python3 fg_cli_collect.py --host 1.2.3.4  --username fortinet --commands cli-commands.txt --output output-file.txt --verbose
+Password for fortinet@1.2.3.4:
 
 [14:25:48] Loaded 2 commands from cli-commands.txt
-[14:25:48] Connecting to 10.9.11.26:22 as fortinet ...
+[14:25:48] Connecting to 1.2.3.4:22 as fortinet ...
 [14:25:49] Received chunk (19 bytes): ...Fortigate-VM #
 [14:25:49] Prompt detected.
 [14:25:49] Running command: get sys status
