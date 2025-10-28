@@ -4,7 +4,7 @@
 FortiGate CLI output Collector - to assist with automated output collection for troubleshooting
 
 CAUTION : 
-* Create separate credentials for read-only purpose so that the script is enabled ot collect read only outputs and not make any inadvertant changes to Fortigate configs.
+* Create separate a separate dedicated account(username/password) for read-only purpose to use with this script, so that the script is enabled to collect read only outputs and not make any inadvertant changes to Fortigate configs.
 * Review the script, test it in lab before it is used in production, this is not an official Fortinet script, only a hobby project.
 
 Usage example:
