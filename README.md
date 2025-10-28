@@ -20,10 +20,11 @@ Note: "admin-read" is just an example account created in FortiGate GUI specifica
 pip install paramiko
 ```
 2. Prepare cli-commands.txt:
-
+Here is an example of a couple of CLI command outputs to collect, the CLI commands should be one per line.
+```bash
 get system status
 get system performance status
-
+```bash
 3. Run:
 ```bash
 python3 fg_cli_collect.py --host 192.168.1.99 --username admin-read --commands cli-commands.txt --output output-file.txt
