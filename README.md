@@ -8,8 +8,9 @@ CAUTION :
 * Review the script, test it in a lab device before it is used in production, this is not an official Fortinet script, just a hobby project to illustrate the use case.
 
 Usage example:
+```bash
   python3 fg_cli_collect.py --host 1.2.3.4 --username admin-read --commands cli-commands.txt --output output-file.txt
-
+```
 If you omit --password, you will be prompted securely.
 Note: "admin-read" is just an example account created in FortiGate GUI specifically with read only permissions.
 
@@ -31,6 +32,9 @@ execute tac report
 python3 fg_cli_collect.py --host 1.2.3.4 --username admin-read --commands cli-commands.txt --output output-file.txt
 ```
 You’ll be prompted for the password if not passed with --password.
+
+4. Outputs
+The CLI command outputs will be collected and stored in the file "output-file.txt". If there is an existing file with the same name, it will be overwritten with the new outputs.
 
 Optional:
 use "verbose" argument for debugging
