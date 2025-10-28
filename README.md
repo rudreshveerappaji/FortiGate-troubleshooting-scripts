@@ -33,7 +33,7 @@ You’ll be prompted for the password if not passed with --password.
 Optional:
 use "verbose" argument for debugging
 ```bash
-python3 fg_cli_collect.py --host 10.9.11.26 --username fortinet --commands cli-commands.txt --output output-file.txt --verbose
+python3 fg_cli_collect.py --host 192.168.1.99 --username fortinet --commands cli-commands.txt --output output-file.txt --verbose
 ```
 ### Example outputs:
 ```bash
