@@ -39,11 +39,11 @@ The CLI command outputs will be collected and stored in the file "output-file.tx
 Optional:
 use "verbose" argument for debugging
 ```bash
-python3 fg_cli_collect.py --host 1.2.3.4 --username fortinet --commands cli-commands.txt --output output-file.txt --verbose
+python3 fg_cli_collect.py --host 1.2.3.4 --username admin --commands cli-commands.txt --output output-file.txt --verbose
 ```
 ### Example outputs:
 ```bash
-C:\Downloads>python3 fg_cli_collect.py --host 1.2.3.4  --username fortinet --commands cli-commands.txt --output output-file.txt --verbose
+C:\Downloads>python3 fg_cli_collect.py --host 1.2.3.4  --admin fortinet --commands cli-commands.txt --output output-file.txt --verbose
 Password for fortinet@1.2.3.4:
 
 [14:25:48] Loaded 2 commands from cli-commands.txt
@@ -64,4 +64,5 @@ Password for fortinet@1.2.3.4:
 
 C:\Downloads>
 ```
+The outputs of all the CLI commands in the "cli-commands.txt" file should now be collected in the file "output-file.txt" in the same directory/folder.
 
