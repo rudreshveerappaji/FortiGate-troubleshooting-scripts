@@ -24,8 +24,8 @@ python3 fg_cli_collect.py --host 10.9.11.26 --username fortinet --commands cli-c
 
 ### Example outputs:
 
-C:\Downloads>python3 fg_cli_collect.py --host 1.2.3.4 --username fortinet --commands cli-commands.txt --output output-file.txt --verbose
-Password for fortinet@10.9.11.26:
+C:\Downloads>python3 fg_cli_collect.py --host 192.168.1.99 --username fortinet --commands cli-commands.txt --output output-file.txt --verbose
+Password for fortinet@192.168.1.99:
 
 [14:25:48] Loaded 2 commands from cli-commands.txt
 [14:25:48] Connecting to 10.9.11.26:22 as fortinet ...
