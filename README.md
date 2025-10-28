@@ -16,26 +16,27 @@ Note: "admin-read" is just an example account created in FortiGate GUI specifica
 ## Usage Example
 
 1. Install dependency:
-
+```bash
 pip install paramiko
-
+```
 2. Prepare cli-commands.txt:
 
 get system status
 get system performance status
 
 3. Run:
-
+```bash
 python3 fg_cli_collect.py --host 192.168.1.99 --username admin-read --commands cli-commands.txt --output output-file.txt
-
+```
 You’ll be prompted for the password if not passed with --password.
 
 Optional:
 use "verbose" argument for debugging
+```bash
 python3 fg_cli_collect.py --host 10.9.11.26 --username fortinet --commands cli-commands.txt --output output-file.txt --verbose
-
+```
 ### Example outputs:
-
+```bash
 C:\Downloads>python3 fg_cli_collect.py --host 192.168.1.99 --username fortinet --commands cli-commands.txt --output output-file.txt --verbose
 Password for fortinet@192.168.1.99:
 
@@ -56,4 +57,5 @@ Password for fortinet@192.168.1.99:
 [14:26:02] ✅ Output saved to output-file.txt
 
 C:\Downloads>
+```
 
