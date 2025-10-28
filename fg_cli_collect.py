@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 fg_cli_collect.py
+FortiGate CLI Collector - Smarter Prompt Handling + Verbose Logging
 
 Usage example:
   python3 fg_cli_collect.py --host 192.168.1.99 --username admin --commands cli-commands.txt --output output-file.txt
@@ -16,6 +17,7 @@ Description:
 
 Dependencies:
   pip install paramiko
+
 """
 
 import argparse
@@ -24,49 +26,22 @@ import time
 import re
 import sys
 import paramiko
+from datetime import datetime
 
-# ---------- Global defaults ----------
-RECV_BUFFER = 65536          # bytes to read per recv
-COMMAND_DELAY = 0.2          # seconds between sending a command and reading
-MORE_PROMPT_PATTERNS = [     # known FortiGate pager prompts
-    b'--More--',
-    b'--More-- ',
-    b'More ',
-    b'Press any key to continue',
-]
+RECV_BUFFER = 65536
+COMMAND_DELAY = 0.2
+MORE_PROMPT_PATTERNS = [b'--More--', b'More', b'Press any key']
+MAX_COMMAND_TIME = 90.0
+CONNECTION_TIMEOUT = 10
+DEFAULT_READ_TIMEOUT = 2.0
 
 
-# ---------- Helper functions ----------
-def read_until_prompt(chan, prompt_regex, timeout):
-    """
-    Reads data from the SSH channel until we detect the FortiGate prompt
-    or a timeout occurs.
-    Returns the entire bytes buffer.
-    """
-    buffer = b''
-    chan.settimeout(timeout)
-    start = time.time()
-    while True:
-        try:
-            if chan.recv_ready():
-                data = chan.recv(RECV_BUFFER)
-                if not data:
-                    break
-                buffer += data
-                # If prompt detected -> stop
-                if re.search(prompt_regex, buffer.decode(errors='ignore')):
-                    break
-            else:
-                time.sleep(0.05)
-                if (time.time() - start) > timeout:
-                    break
-        except Exception:
-            break
-    return buffer
+def log(msg, verbose=True):
+    if verbose:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
 
 
 def detect_more_prompt(data_bytes):
-    """Return True if '--More--' or similar pager prompt detected."""
     if not data_bytes:
         return False
     for pattern in MORE_PROMPT_PATTERNS:
@@ -77,153 +52,189 @@ def detect_more_prompt(data_bytes):
 
 def sanitize_prompt_line(line):
     """
-    Construct a regex pattern to detect the FortiGate CLI prompt.
-    Typical prompts: 'hostname #', 'hostname >', 'hostname (config) #'
+    Creates a relaxed regex for the FortiGate prompt.
+    - Tolerates optional trailing text/spaces
+    - Works with or without (config) contexts
     """
     escaped = re.escape(line.strip())
     if not escaped:
         return r'[>#]\s*$'
-    return escaped + r'[\s\S]{0,30}[#>]\s*$'
+    # match up to 40 extra printable chars after hostname before # or >
+    return escaped + r'[\s\S]{0,40}?[#>]\s*$'
 
 
-# ---------- Main logic ----------
+def read_until_prompt(chan, prompt_regex, timeout, max_wait, idle_exit_after, verbose=False):
+    """
+    Read data until:
+      - Prompt regex detected, OR
+      - idle_exit_after seconds pass with no new data, OR
+      - max_wait exceeded.
+    """
+    buffer = b''
+    start_time = time.time()
+    last_data_time = time.time()
+    chan.settimeout(timeout)
+
+    while True:
+        try:
+            if chan.recv_ready():
+                data = chan.recv(RECV_BUFFER)
+                if not data:
+                    break
+                buffer += data
+                last_data_time = time.time()
+                if verbose:
+                    snippet = data.decode(errors='ignore')[-60:].replace('\n', '\\n')
+                    log(f"Received chunk ({len(data)} bytes): ...{snippet}")
+                if re.search(prompt_regex, buffer.decode(errors='ignore')):
+                    log("Prompt detected.", verbose)
+                    break
+            else:
+                time.sleep(0.05)
+
+            # Idle timeout
+            if (time.time() - last_data_time) > idle_exit_after:
+                log(f"No new data for {idle_exit_after}s → assuming end of command.", verbose)
+                break
+            if (time.time() - start_time) > max_wait:
+                log(f"Max wait {max_wait}s exceeded.", verbose)
+                break
+        except Exception as e:
+            log(f"Exception during read: {e}", verbose)
+            break
+    return buffer
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Run CLI commands on a FortiGate and collect outputs.')
-    parser.add_argument('--host', required=True, help='FortiGate hostname or IP')
-    parser.add_argument('--port', type=int, default=22, help='SSH port (default: 22)')
-    parser.add_argument('--username', '-u', required=True, help='SSH username')
-    parser.add_argument('--password', '-p', help='SSH password (omit to prompt securely)')
-    parser.add_argument('--commands', '-c', default='cli-commands.txt', help='File with CLI commands')
-    parser.add_argument('--output', '-o', default='output-file.txt', help='File to save outputs')
-    parser.add_argument('--timeout', type=float, default=2.0, help='Read timeout in seconds (default: 2.0)')
+    parser = argparse.ArgumentParser(description='Run CLI commands on FortiGate.')
+    parser.add_argument('--host', required=True)
+    parser.add_argument('--port', type=int, default=22)
+    parser.add_argument('--username', '-u', required=True)
+    parser.add_argument('--password', '-p')
+    parser.add_argument('--commands', '-c', default='cli-commands.txt')
+    parser.add_argument('--output', '-o', default='output-file.txt')
+    parser.add_argument('--timeout', type=float, default=DEFAULT_READ_TIMEOUT)
+    parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
-    # Local variable instead of global
+    verbose = args.verbose
     read_timeout = args.timeout
+    host, port, username = args.host, args.port, args.username
+    password = args.password or getpass.getpass(f'Password for {username}@{host}: ')
+    commands_file, output_file = args.commands, args.output
 
-    host = args.host
-    port = args.port
-    username = args.username
-    password = args.password if args.password else getpass.getpass(f'Password for {username}@{host}: ')
-    commands_file = args.commands
-    output_file = args.output
-
-    # Read CLI commands from file
+    # --- Load commands ---
     try:
         with open(commands_file, 'r', encoding='utf-8') as f:
-            commands = [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
+            commands = [l.strip() for l in f if l.strip() and not l.startswith('#')]
     except FileNotFoundError:
-        print(f'[ERROR] Commands file not found: {commands_file}', file=sys.stderr)
+        log(f"[ERROR] Commands file not found: {commands_file}")
         sys.exit(1)
-
     if not commands:
-        print('[ERROR] No commands found in file.', file=sys.stderr)
+        log("[ERROR] No commands found.")
         sys.exit(1)
+    log(f"Loaded {len(commands)} commands from {commands_file}", verbose)
 
-    # Create SSH client
+    # --- Connect ---
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    print(f'Connecting to {host}:{port} as {username} ...')
+    log(f"Connecting to {host}:{port} as {username} ...", verbose)
     try:
         ssh.connect(
-            hostname=host,
-            port=port,
-            username=username,
-            password=password,
-            look_for_keys=False,
-            allow_agent=False,
-            timeout=10
+            hostname=host, port=port,
+            username=username, password=password,
+            look_for_keys=False, allow_agent=False,
+            timeout=CONNECTION_TIMEOUT
         )
     except Exception as e:
-        print(f'[ERROR] SSH connection failed: {e}', file=sys.stderr)
+        log(f"[ERROR] SSH connect failed: {e}")
         sys.exit(1)
 
     chan = ssh.invoke_shell()
     chan.settimeout(read_timeout)
     time.sleep(0.5)
 
-    # Capture the initial banner/prompt
-    initial = read_until_prompt(chan, r'[>#]\s*$', timeout=3.0)
-    initial_decoded = initial.decode(errors='ignore')
-
-    # Try to guess the prompt
+    # --- Detect prompt ---
+    initial = read_until_prompt(chan, r'[>#]\s*$', timeout=3.0, max_wait=5.0, idle_exit_after=3.0, verbose=verbose)
+    decoded_init = initial.decode(errors='ignore')
     prompt_line = ''
-    for l in reversed(initial_decoded.splitlines()):
+    for l in reversed(decoded_init.splitlines()):
         if l.strip():
             prompt_line = l.strip()
             break
     prompt_regex = sanitize_prompt_line(prompt_line)
+    log(f"Detected prompt pattern: {prompt_regex}", verbose)
 
-    # Collect outputs
     outputs = []
-    outputs.append(f'-- Session start: {time.strftime("%Y-%m-%d %H:%M:%S")} --\n')
+    outputs.append(f'-- Session start: {datetime.now()} --\n')
     outputs.append(f'Connected to {host} as {username}\n\n')
-
-    if initial_decoded.strip():
+    if decoded_init.strip():
         outputs.append('--- Initial Banner ---\n')
-        outputs.append(initial_decoded + '\n')
+        outputs.append(decoded_init + '\n')
         outputs.append('--- End Banner ---\n\n')
 
-    # Execute each command
+    # --- Run commands ---
     for cmd in commands:
-        print(f'Running: {cmd}')
+        log(f"Running command: {cmd}", verbose)
         outputs.append(f'\n=== Command: {cmd} ===\n')
 
-        chan.send(cmd + '\n')
-        time.sleep(COMMAND_DELAY)
+        try:
+            chan.send(cmd + '\n')
+        except Exception as e:
+            log(f"[ERROR] Failed to send '{cmd}': {e}")
+            outputs.append(f"[ERROR] Failed to send {cmd}\n")
+            continue
 
+        time.sleep(COMMAND_DELAY)
         collected = b''
-        overall_start = time.time()
-        max_command_time = 120.0  # safety timeout per command
+        start_time = time.time()
 
         while True:
-            chunk = read_until_prompt(chan, prompt_regex, timeout=read_timeout)
+            chunk = read_until_prompt(
+                chan, prompt_regex,
+                timeout=read_timeout, max_wait=15.0,
+                idle_exit_after=3.0, verbose=verbose
+            )
             if chunk:
                 collected += chunk
-
-            # Handle pager
             if detect_more_prompt(collected):
+                log("Pager detected → sending space.", verbose)
                 chan.send(' ')
                 time.sleep(0.2)
                 continue
-
-            # Detect prompt (command done)
-            try:
-                if re.search(prompt_regex, collected.decode(errors='ignore')):
-                    break
-            except Exception:
-                pass
-
-            # Timeout guard
-            if (time.time() - overall_start) > max_command_time:
-                collected += b'\n[ERROR] Command timed out.\n'
+            # If no chunk for long enough or timeout reached
+            if (time.time() - start_time) > MAX_COMMAND_TIME:
+                log(f"[WARN] Command '{cmd}' timed out after {MAX_COMMAND_TIME}s", verbose)
+                collected += b'\n[WARN] Command timed out.\n'
                 break
-
-            time.sleep(0.1)
+            # Break if we saw prompt or if read_until_prompt exited due to idle
+            if not chunk:
+                break
 
         text = collected.decode('utf-8', errors='replace')
         outputs.append(text)
         outputs.append(f'\n=== End of Command: {cmd} ===\n')
+        log(f"Finished '{cmd}', collected {len(text)} chars.", verbose)
 
-    outputs.append(f'\n-- Session end: {time.strftime("%Y-%m-%d %H:%M:%S")} --\n')
+    outputs.append(f'\n-- Session end: {datetime.now()} --\n')
 
-    # Close connections
+    # --- Cleanup ---
     try:
         chan.close()
         ssh.close()
     except Exception:
         pass
 
-    # Write output file
+    # --- Save output ---
     try:
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(''.join(outputs))
-        print(f'\n✅ All done. Results saved to: {output_file}')
+        log(f"✅ Output saved to {output_file}")
     except Exception as e:
-        print(f'[ERROR] Failed to write output file: {e}', file=sys.stderr)
+        log(f"[ERROR] Failed to write output: {e}")
         sys.exit(1)
 
 
 if __name__ == '__main__':
     main()
+
