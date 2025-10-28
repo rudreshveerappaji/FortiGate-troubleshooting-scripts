@@ -1,4 +1,4 @@
-# FortiGate-login-with-SSH-and-collect-CLI-command-outputs
+# FortiGate-login-with-SSH-and-collect-CLI-command-outputs-in-bulk
 
 ## Purpose
 FortiGate CLI output Collector python script - to assist with automated output collection for troubleshooting
