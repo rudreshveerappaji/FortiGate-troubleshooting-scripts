@@ -24,7 +24,7 @@ Here is an example of a couple of CLI command outputs to collect, the CLI comman
 ```bash
 get system status
 get system performance status
-```bash
+```
 3. Run:
 ```bash
 python3 fg_cli_collect.py --host 192.168.1.99 --username admin-read --commands cli-commands.txt --output output-file.txt
