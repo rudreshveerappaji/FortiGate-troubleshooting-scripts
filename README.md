@@ -24,6 +24,7 @@ Here is an example of a couple of CLI command outputs to collect, the CLI comman
 ```bash
 get system status
 get system performance status
+execute tac report
 ```
 3. Run:
 ```bash
